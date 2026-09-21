@@ -1,184 +1,156 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+let timer = null;
+let focusTime = 25;
+let breakTime = 5;
+let minutes = 25;
+let seconds = 0;
+let isRunning = false;
+let currentMode = 'focus';
+
+const timerDisplay = document.getElementById('timer');
+const startBtn = document.getElementById('start-btn');
+const pauseBtn = document.getElementById('pause-btn');
+const statusBadge = document.getElementById('status-badge');
+const focusInput = document.getElementById('focus-input');
+const breakInput = document.getElementById('break-input');
+const alarmSound = document.getElementById('alarm-sound');
+
+function updateDisplay() {
+  const m = String(minutes).padStart(2, '0');
+  const s = String(seconds).padStart(2, '0');
+  timerDisplay.textContent = `${m}:${s}`;
+  const modeLabel = currentMode === 'focus' ? 'Focus' : 'Break';
+  document.title = `${m}:${s} - ${modeLabel}`;
 }
 
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #2f3640;
-  color: #ffffff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+function updateStatusBadge() {
+  if (currentMode === 'focus') {
+    statusBadge.textContent = 'Focus Time';
+    statusBadge.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+  } else {
+    statusBadge.textContent = 'Break Time';
+    statusBadge.style.backgroundColor = 'rgba(46, 204, 113, 0.35)';
+  }
 }
 
-.container {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 30px;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  width: 90%;
-  max-width: 450px;
+function updateCustomTimes() {
+  let newFocus = parseInt(focusInput.value, 10);
+  let newBreak = parseInt(breakInput.value, 10);
+
+  if (isNaN(newFocus) || newFocus < 1) newFocus = 1;
+  if (isNaN(newBreak) || newBreak < 1) newBreak = 1;
+
+  focusTime = newFocus;
+  breakTime = newBreak;
+  focusInput.value = focusTime;
+  breakInput.value = breakTime;
+
+  if (!isRunning) {
+    minutes = currentMode === 'focus' ? focusTime : breakTime;
+    seconds = 0;
+    updateDisplay();
+  }
 }
 
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+function startTimer() {
+  if (isRunning) return;
+  isRunning = true;
+  startBtn.disabled = true;
+  pauseBtn.disabled = false;
+  focusInput.disabled = true;
+  breakInput.disabled = true;
+
+  timer = setInterval(() => {
+    if (seconds === 0) {
+      if (minutes === 0) {
+        alarmSound.play().catch(() => {});
+        
+        // Continuous auto-switch between Focus and Break
+        if (currentMode === 'focus') {
+          currentMode = 'break';
+          minutes = breakTime;
+        } else {
+          currentMode = 'focus';
+          minutes = focusTime;
+        }
+        seconds = 0;
+        updateStatusBadge();
+        updateDisplay();
+        return;
+      }
+      minutes--;
+      seconds = 59;
+    } else {
+      seconds--;
+    }
+    updateDisplay();
+  }, 1000);
 }
 
-.status-badge {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  transition: background-color 0.3s ease;
+function pauseTimer() {
+  clearInterval(timer);
+  isRunning = false;
+  startBtn.disabled = false;
+  pauseBtn.disabled = true;
+  focusInput.disabled = false;
+  breakInput.disabled = false;
 }
 
-.view-buttons {
-  display: flex;
-  gap: 8px;
+function resetTimer() {
+  pauseTimer();
+  currentMode = 'focus';
+  minutes = focusTime;
+  seconds = 0;
+  updateStatusBadge();
+  updateDisplay();
 }
 
-.view-buttons button {
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  color: #ffffff;
-  padding: 5px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: bold;
-  transition: background 0.2s;
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
 }
 
-.view-buttons button:hover {
-  background: rgba(255, 255, 255, 0.25);
+async function togglePip() {
+  if ('documentPictureInPicture' in window) {
+    if (window.documentPictureInPicture.window) {
+      window.documentPictureInPicture.window.close();
+      return;
+    }
+
+    const app = document.getElementById('pomodoro-app');
+    const pipWindow = await window.documentPictureInPicture.requestWindow({
+      width: 380,
+      height: 360
+    });
+
+    [...document.styleSheets].forEach((styleSheet) => {
+      try {
+        const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
+        const style = document.createElement('style');
+        style.textContent = cssRules;
+        pipWindow.document.head.appendChild(style);
+      } catch (e) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = styleSheet.href;
+        pipWindow.document.head.appendChild(link);
+      }
+    });
+
+    pipWindow.document.body.classList.add('pip-mode');
+    pipWindow.document.body.appendChild(app);
+
+    pipWindow.addEventListener('pagehide', () => {
+      document.body.appendChild(app);
+    });
+  } else {
+    alert('Picture-in-Picture for web pages is supported in Chrome or Edge.');
+  }
 }
 
-h1 {
-  margin-bottom: 20px;
-  font-size: 1.8rem;
-  font-weight: 600;
-}
-
-.time-inputs {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.input-group label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  opacity: 0.8;
-}
-
-.input-group input {
-  width: 70px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.2);
-  color: #ffffff;
-  font-size: 1rem;
-  text-align: center;
-  font-weight: bold;
-  outline: none;
-}
-
-.input-group input:focus {
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-.timer-display {
-  font-size: 4.5rem;
-  font-weight: 700;
-  margin: 15px 0;
-  letter-spacing: 2px;
-  font-variant-numeric: tabular-nums;
-}
-
-.controls {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin-top: 10px;
-}
-
-.controls button {
-  background-color: #ffffff;
-  color: #2f3640;
-  border: none;
-  padding: 12px 26px;
-  font-size: 1rem;
-  font-weight: bold;
-  border-radius: 6px;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: transform 0.1s, opacity 0.2s;
-}
-
-.controls button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  background-color: #f1f2f6;
-}
-
-.controls button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* Dynamic styling for Picture-in-Picture window scaling */
-body.pip-mode {
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #2f3640;
-}
-
-body.pip-mode .container {
-  width: 100vw;
-  height: 100vh;
-  max-width: none;
-  border-radius: 0;
-  border: none;
-  box-shadow: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 15px;
-  box-sizing: border-box;
-}
-
-body.pip-mode .timer-display {
-  font-size: clamp(2.5rem, 15vw, 5rem);
-  margin: 10px 0;
-}
-
-body.pip-mode h1 {
-  font-size: clamp(1.2rem, 5vw, 1.8rem);
-  margin-bottom: 10px;
-}
+updateStatusBadge();
+updateDisplay();
