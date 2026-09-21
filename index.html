@@ -9,9 +9,7 @@
 <body>
   <div class="container" id="pomodoro-app">
     <div class="top-bar">
-      <label class="color-picker-label">
-        Color: <input type="color" id="bg-color" value="#ba4949" onchange="changeColor(this.value)">
-      </label>
+      <div class="status-badge" id="status-badge">Focus Time</div>
       <div class="view-buttons">
         <button onclick="togglePip()">PiP</button>
         <button onclick="toggleFullscreen()">Fullscreen</button>
@@ -19,11 +17,16 @@
     </div>
 
     <h1>Pomodoro Timer</h1>
-    
-    <div class="mode-buttons">
-      <button id="work-btn" class="mode-btn active" onclick="setMode('work')">Work (25m)</button>
-      <button id="short-break-btn" class="mode-btn" onclick="setMode('shortBreak')">Short Break (5m)</button>
-      <button id="long-break-btn" class="mode-btn" onclick="setMode('longBreak')">Long Break (15m)</button>
+
+    <div class="time-inputs">
+      <div class="input-group">
+        <label for="focus-input">Focus (min)</label>
+        <input type="number" id="focus-input" value="25" min="1" max="180" onchange="updateCustomTimes()">
+      </div>
+      <div class="input-group">
+        <label for="break-input">Break (min)</label>
+        <input type="number" id="break-input" value="5" min="1" max="60" onchange="updateCustomTimes()">
+      </div>
     </div>
 
     <div class="timer-display" id="timer">25:00</div>
@@ -36,7 +39,6 @@
   </div>
 
   <audio id="alarm-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-  <audio id="switch-sound" src="https://actions.google.com/sounds/v1/ui/button_click.ogg" preload="auto"></audio>
   <script src="script.js"></script>
 </body>
 </html>
